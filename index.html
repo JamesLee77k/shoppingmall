@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SmartMall Logic Lab</title>
+<style>
+:root{--bg:#f8f5ee;--fg:#1f2433;--card:#fff;--bd:#e3ddd0;--pr:#1f3a5f;--mu:#6b7080;--ok:#1d7a4a;--er:#b3261e}
+@media(prefers-color-scheme:dark){:root{--bg:#14171f;--fg:#ece9e2;--card:#1d212c;--bd:#2d3342;--pr:#7fb0ee;--mu:#9aa0b0;--ok:#5ccf8f;--er:#ff8a80}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif}
+a{color:inherit;text-decoration:none}header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--bd);display:flex;gap:14px;align-items:center;padding:10px 16px;flex-wrap:wrap}
+header b{font-size:18px;color:var(--pr)}nav{display:flex;gap:12px;flex:1;flex-wrap:wrap}nav a{color:var(--mu)}nav a.on{color:var(--pr);font-weight:700}
+main{max-width:1100px;margin:auto;padding:16px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}.p img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:var(--bd)}
+.p h4{margin:8px 0 2px;font-size:14px}.mu{color:var(--mu);font-size:13px}.old{text-decoration:line-through;color:var(--mu);font-size:12px}
+button,select,input{font:inherit;border:1px solid var(--bd);border-radius:8px;padding:6px 10px;background:var(--card);color:var(--fg)}
+button{cursor:pointer}button.pr{background:var(--pr);color:var(--bg);border-color:var(--pr)}button:disabled{opacity:.5}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.bar input{flex:1;min-width:150px}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bd)}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:6px;border-bottom:1px solid var(--bd);font-size:13px}
+pre{background:#0f131b;color:#cfe3ff;padding:12px;border-radius:8px;overflow:auto;font:12px/1.5 ui-monospace,monospace}
+.ok{color:var(--ok)}.er{color:var(--er)}.tag{font-size:11px;background:var(--bd);border-radius:6px;padding:1px 6px}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--pr);color:var(--bg);padding:8px 14px;border-radius:8px;display:none;z-index:9}
+</style></head><body>
+<header><b>SmartMall</b><nav id="nav"></nav><span id="cc"></span></header>
+<main id="app"></main><div id="toast"></div>
+<script>
+/* ---------- Catalogue (ported from smartmall-catalog.ts) ---------- */
+const CATS=[["electronics","Electronics"],["mobiles","Mobiles"],["fashion","Fashion"],["shoes","Shoes"],["home-furniture","Home & Furniture"],["kitchen-appliances","Kitchen Appliances"],["grocery","Grocery"],["beauty","Beauty"],["watches-jewellery","Watches & Jewellery"],["sports-fitness","Sports & Fitness"],["toys-gaming","Toys & Gaming"],["books-stationery","Books & Stationery"]];
+const SRC=[
+[["Studio Pro Headphones","Nova 4K Smart TV","Arc Wireless Speaker","PixelPro Mirrorless Camera","AirKey Mechanical Keyboard","Beam Portable Projector","Pulse Smart Watch","Lumen Desk Lamp"],2499,["1505740420928-5e560c06d30e","1593359677879-a4bb92f829d1","1608043152269-423dbba4e7e1","1516035069371-29a1b244cc32"]],
+[["Nova X Ultra 5G","Pixel 9 Pro","Galaxy Fold Lite","OnePlus Nord Max","iPhone 16 Air","Nothing Phone (3a)","Moto Edge Neo","Redmi Note Prime"],16999,["1511707171634-5f897ff02aa9","1598327105666-5b89351aff97","1512499617640-c74ae3a79d37","1592750475338-74b7b21085ab"]],
+[["Linen Weekend Shirt","Everyday Denim Jacket","Relaxed Oxford Shirt","Sunday Knit Sweater","Studio Wide-Leg Trousers","Everyday Cotton Dress","City Trench Coat","Ribbed Lounge Set"],899,["1483985988355-763728e1935b","1539109136881-3be0616acf4b","1529139574466-a303027c1d8b","1485230895905-ec40ba36b9bc"]],
+[["Cloudstep Runner","City Leather Low","Trailform Hiker","Classic Court Sneaker","Marathon Knit Pro","Everyday Chelsea Boot","Studio Slide Sandal","Courtline High-Top"],1299,["1542291026-7eec264c27ff","1543163521-1bf539c55dd2","1552346154-21d32810aba3","1495555961986-6d4c1ecb7be3"]],
+[["Marlow Accent Chair","Solstice Floor Lamp","Rowan Side Table","Sunday Reading Chair","Arc Oak Bookshelf","Dune Linen Throw","Fieldstone Coffee Table","Studio Barstool"],1899,["1505693416388-ac5ce068fe85","1494438639946-1ebd1d20bf85","1616486338812-3dadae4b4ace","1600210492486-724fe5c67fb0"]],
+[["Barista Brew Machine","Luma Air Fryer","PureBlend Pro Mixer","Daily Grind Coffee Maker","Steam & Go Kettle","SliceSmart Toaster","FreshPress Juicer","QuietChef Rice Cooker"],1599,["1495474472287-4d71bcdd2085","1556911220-e15b29be8c8f","1585515320310-259814833e62","1556910103-1c02745aae4d"]],
+[["Sunday Morning Oat Granola","Single-Origin Coffee Beans","Golden Grove Olive Oil","Ceylon Breakfast Tea","Stoneground Almond Butter","Wildflower Raw Honey","Harvest Trail Mix","Dark Chocolate Bites"],199,["1547592180-85f173990554","1445116572660-236099ec97a0","1509440159596-0249088772ff","1544787219-7f47ccb76574"]],
+[["Dewdrop Hydration Serum","Sunday SPF 50","Cloud Nine Night Cream","Rosewater Cleansing Balm","Lash & Line Duo","Velvet Matte Lip Set","Botanical Body Oil","Daily Glow Face Mist"],499,["1601049541289-9b1b7bbbfe19","1596462502278-27bfdc403348","1608248543803-ba4f8c70ae0b","1570194065650-d99fb4bedf0a"]],
+[["Arc Automatic Watch","Solstice Gold Hoops","Everyday Silver Chain","Luna Pearl Studs","Field Watch 38mm","Stacked Ring Set","Daybreak Pendant","Ridge Chronograph"],1699,["1523275335684-37898b6baf30","1611591437281-460bfbe1220a","1617038220319-276d3cfab638","1515562141207-7a88fb7ce338"]],
+[["Daily Form Yoga Mat","Tempo Running Bottle","LiftStrong Resistance Kit","Everyday Training Duffel","CoreFlex Kettlebell","Trail Day Hiking Pack","SpinLite Jump Rope","Recovery Foam Roller"],699,["1518611012118-696072aa579a","1538805060514-97d9cc17730c","1576678927484-cc907957088c","1552674605-db6ffd4facb5"]],
+[["Orbit Handheld Console","Pixel Pals Building Set","Pocket Arcade Racer","Little Makers Art Kit","Cosmic Quest Board Game","Soft Landing Balance Bike","Robo Buddy Explorer","Junior Chef Play Kitchen"],799,["1493711662062-fa541adb3fc8","1599623560574-39d485900c95","1550745165-9bc0b252726f","1560961911-ba7ef651a56c"]],
+[["The Quiet Hours — Novel","Field Notes Hardcover Set","Atlas of Small Wonders","The Art of Enough","Everyday Sketchbook","Modern Classics Collection","The Sunday Crossword Book","Color Study Pencil Kit"],299,["1507842217343-583bb7270b66","1512820790803-83ca734da794","1455390582262-044cdead277a","1453738773917-9c3eff1db985"]]];
+const seed=()=>SRC.flatMap(([names,base,imgs],ci)=>names.map((name,i)=>({id:CATS[ci][0]+"-"+(i+1),sku:"SM-"+CATS[ci][0].slice(0,3).toUpperCase()+"-"+String(i+1).padStart(3,"0"),name,category:CATS[ci][1],price:base+i*Math.max(89,Math.round(base*.19)),rating:+(4.2+((i*3+ci)%8)*.1).toFixed(1),disc:10+((i*7+ci*3)%26),stock:6+((i*11+ci*7)%44),img:`https://images.unsplash.com/photo-${imgs[i%4]}?auto=format&fit=crop&w=600&q=80`,isNew:i==0||i==5,best:i==2||i==3})));
+const CART_LIMIT=99,QUEUE_CAP=10,DISC_T=5000;
+const inr=v=>new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(v);
+const sale=p=>Math.round(p.price*(1-p.disc/100));
+
+/* ---------- Persistent store (replaces Express + Postgres) ---------- */
+let S;try{S=JSON.parse(localStorage.getItem("smartmall"))}catch(e){}
+if(!S||!S.products)S={products:seed(),cart:{},wish:[],orders:[],activity:["Mall catalogue loaded: 96 products across 12 departments.","Verilog checkout controllers are connected to the checkout flow.","Customer queue controller initialized with a capacity of 10."]};
+const save=()=>{try{localStorage.setItem("smartmall",JSON.stringify(S))}catch(e){}};
+const log=m=>{S.activity.unshift(new Date().toLocaleTimeString()+" — "+m);S.activity=S.activity.slice(0,30)};
+const P=id=>S.products.find(p=>p.id==id);
+const toast=m=>{const t=document.getElementById("toast");t.textContent=m;t.style.display="block";clearTimeout(t._t);t._t=setTimeout(()=>t.style.display="none",2200)};
+
+/* ---------- Verilog modules ported to JS (cycle-accurate FSM) ---------- */
+const V={
+ cartValid:(count,limit,q)=>+(q>0&&q<=99&&count<=limit),
+ stock:(avail,q)=>+(q>0&&q<=avail),
+ queueAvail:(c,cap)=>+(cap>0&&c<cap),
+ payment:a=>a,
+ discount:(sub,th)=>{const e=+(sub>=th&&th>0);return{eligible:e,amount:e?Math.floor(sub/10):0}},
+ next:(s,i)=>s==0?(i.start?1:0):s==1?(i.stock&&i.qv?2:5):s==2?(i.qa?3:5):s==3?(i.pay?4:5):s==4?4:s==5?5:0};
+const ST=["IDLE","VALIDATE","QUEUE","PAYMENT","APPROVED","REJECTED"];
+const SCEN={"successful-checkout":{},"insufficient-stock":{stock:1,qty:2,count:2},"invalid-quantity":{qty:0,count:0},"rejected-payment":{pay:0},"full-queue":{qc:10},"discount-eligible":{sub:10000}};
+function simulate(name,o={}){
+ const d={stock:20,qty:2,count:2,limit:99,pay:1,qc:1,qcap:10,sub:2000,th:5000,...SCEN[name],...o};
+ const qv=V.cartValid(d.count,d.limit,d.qty),sa=V.stock(d.stock,d.qty),qa=V.queueAvail(d.qc,d.qcap),pa=V.payment(d.pay),dc=V.discount(d.sub,d.th);
+ let s=0,out=[`# scenario=${name}`,`# inputs stock=${d.stock} qty=${d.qty} cart=${d.count}/${d.limit} queue=${d.qc}/${d.qcap} pay=${d.pay} subtotal=${d.sub} threshold=${d.th}`,`cycle 0 reset  state=IDLE`];
+ for(let c=1;c<=6;c++){s=V.next(s,{start:1,stock:sa,qv,qa,pay:pa});out.push(`cycle ${c} clk↑  state=${ST[s]}`);if(s>=4)break}
+ const complete=+(s==4),rej=+(s==5);
+ const exp=!["insufficient-stock","invalid-quantity","rejected-payment","full-queue"].includes(name);
+ let passed=complete==+exp;if(name=="discount-eligible")passed=passed&&dc.eligible==1;
+ out.push(`RESULT scenario=${name} passed=${+passed}`);
+ return{scenario:name,passed,log:out.join("\n"),signals:{stock_available:sa,quantity_valid:qv,queue_available:qa,payment_approved:pa,discount_eligible:dc.eligible,discount_amount:dc.amount,fsm_state:ST[s],checkout_complete:complete,checkout_rejected:rej}};
+}
+
+/* ---------- Actions (ported from routes/smartmall.ts) ---------- */
+const cartLines=()=>Object.entries(S.cart).map(([id,q])=>({p:P(id),q})).filter(l=>l.p);
+const cartCount=()=>cartLines().reduce((a,l)=>a+l.q,0);
+function addCart(id,d=1){const p=P(id),cur=S.cart[id]||0,n=cur+d;
+ if(n<=0){delete S.cart[id]}else{if(n>p.stock)return toast("Only "+p.stock+" in stock");if(cartCount()+d>CART_LIMIT)return toast("Cart limit is "+CART_LIMIT);S.cart[id]=n}
+ save();render()}
+function wish(id){const i=S.wish.indexOf(id);i<0?S.wish.push(id):S.wish.splice(i,1);save();render()}
+function checkout(pay){
+ const L=cartLines();if(!L.length)return toast("Your cart is empty.");
+ const total=cartCount();
+ const sub=L.reduce((a,l)=>a+sale(l.p)*l.q,0);let sim;
+ for(const l of L){sim=simulate(pay?"successful-checkout":"rejected-payment",{stock:l.p.stock,qty:l.q,count:total,limit:CART_LIMIT,pay:+pay,qc:1,qcap:QUEUE_CAP,sub,th:DISC_T});
+  if(!sim.signals.stock_available||!sim.signals.quantity_valid||!sim.signals.queue_available){toast("Checkout controller rejected the cart.");return sim}}
+ const disc=sim.signals.discount_eligible?sim.signals.discount_amount:0;
+ const o={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),track:"SM-"+Math.random().toString(16).slice(2,10).toUpperCase(),date:new Date().toLocaleString(),status:pay?"Confirmed":"Payment declined",lines:L.map(l=>({n:l.p.name,q:l.q,pr:sale(l.p)})),sub,disc,total:Math.max(0,sub-disc)};
+ S.orders.unshift(o);
+ if(pay){L.forEach(l=>l.p.stock-=l.q);S.cart={};log(`Order ${o.track} confirmed (${inr(o.total)})`)}else log(`Order ${o.track} payment declined`);
+ save();toast(pay?"Order placed: "+o.track:"Payment declined");lastSim=sim;location.hash="#/orders";return sim}
+let lastSim=null,labRes=null,F={q:"",c:"",s:"featured"};
+
+/* ---------- Views ---------- */
+const card=p=>`<div class="card p"><a href="#/p/${p.id}"><img loading="lazy" src="${p.img}" alt="${p.name}"></a><h4>${p.name}</h4><div class="mu">${p.category} · ★${p.rating} ${p.isNew?'<span class=tag>New</span>':''}${p.best?' <span class=tag>Bestseller</span>':''}</div>
+<div><b>${inr(sale(p))}</b> <span class=old>${inr(p.price)}</span> <span class=ok>${p.disc}% off</span></div><div class="mu">${p.stock?p.stock+" in stock":"Out of stock"}</div>
+<div class="row" style="border:0"><button class=pr ${p.stock?"":"disabled"} onclick="addCart('${p.id}')">Add to cart</button><button onclick="wish('${p.id}')">${S.wish.includes(p.id)?"♥":"♡"}</button></div></div>`;
+const V_={
+home(){let l=S.products.filter(p=>(!F.c||p.category==F.c)&&p.name.toLowerCase().includes(F.q.toLowerCase()));
+ const so={"price-asc":(a,b)=>sale(a)-sale(b),"price-desc":(a,b)=>sale(b)-sale(a),rating:(a,b)=>b.rating-a.rating,discount:(a,b)=>b.disc-a.disc};if(so[F.s])l.sort(so[F.s]);
+ return`<div class=bar><input id=q placeholder="Search 96 products…" value="${F.q}" oninput="F.q=this.value;render(1)"><select onchange="F.c=this.value;render()"><option value="">All departments</option>${CATS.map(c=>`<option ${F.c==c[1]?"selected":""}>${c[1]}</option>`).join("")}</select><select onchange="F.s=this.value;render()">${[["featured","Featured"],["price-asc","Price ↑"],["price-desc","Price ↓"],["rating","Rating"],["discount","Discount"]].map(o=>`<option value=${o[0]} ${F.s==o[0]?"selected":""}>${o[1]}</option>`).join("")}</select></div><div class=grid>${l.map(card).join("")||"<p class=mu>No products match.</p>"}</div>`},
+product(id){const p=P(id);if(!p)return"<p>Not found.</p>";return`<a href="#/">← Back</a><div class=card style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:10px"><img style="width:100%;border-radius:10px" src="${p.img}"><div><h2>${p.name}</h2><p class=mu>${p.sku} · ${p.category} · ★${p.rating}</p><p>${p.name} — a customer favorite from the SmartMall ${p.category} collection.</p><h3>${inr(sale(p))} <span class=old>${inr(p.price)}</span></h3><p class=mu>${p.stock} in stock</p><button class=pr ${p.stock?"":"disabled"} onclick="addCart('${p.id}')">Add to cart</button> <button onclick="wish('${p.id}')">${S.wish.includes(p.id)?"♥ Saved":"♡ Save"}</button></div></div>`},
+cart(){const L=cartLines();if(!L.length)return"<h2>Cart</h2><p class=mu>Your cart is empty.</p>";const sub=L.reduce((a,l)=>a+sale(l.p)*l.q,0),dc=V.discount(sub,DISC_T);
+ return`<h2>Cart</h2><div class=card>${L.map(l=>`<div class=row><span>${l.p.name}<br><span class=mu>${inr(sale(l.p))} each</span></span><span><button onclick="addCart('${l.p.id}',-1)">−</button> ${l.q} <button onclick="addCart('${l.p.id}',1)">+</button> <button onclick="delete S.cart['${l.p.id}'];save();render()">✕</button></span></div>`).join("")}
+<p>Subtotal: <b>${inr(sub)}</b><br>${dc.eligible?`<span class=ok>Discount (Verilog discount_controller): −${inr(dc.amount)}</span><br>Total: <b>${inr(sub-dc.amount)}</b>`:`<span class=mu>Spend ${inr(DISC_T)}+ for 10% off</span>`}</p>
+<button class=pr onclick="checkout(true)">Pay & place order</button> <button onclick="checkout(false)">Simulate declined payment</button></div>`},
+wishlist(){const l=S.wish.map(P).filter(Boolean);return`<h2>Wishlist</h2><div class=grid>${l.map(card).join("")||"<p class=mu>Nothing saved yet.</p>"}</div>`},
+orders(){return`<h2>Orders</h2>${lastSim?`<p class=mu>Last checkout ran through the checkout FSM: <b class="${lastSim.passed?"ok":"er"}">${lastSim.signals.fsm_state}</b></p>`:""}${S.orders.map(o=>`<div class=card style="margin-bottom:10px"><b>${o.track}</b> <span class=tag>${o.status}</span> <span class=mu>${o.date}</span>${o.lines.map(l=>`<div class=row><span>${l.n} × ${l.q}</span><span>${inr(l.pr*l.q)}</span></div>`).join("")}<p>Subtotal ${inr(o.sub)}${o.disc?` · Discount −${inr(o.disc)}`:""} · <b>Total ${inr(o.total)}</b></p></div>`).join("")||"<p class=mu>No orders yet.</p>"}`},
+admin(){const sold=S.orders.filter(o=>o.status=="Confirmed").reduce((a,o)=>a+o.total,0);
+ return`<h2>Store operations</h2><div class=bar><div class=card>Orders<br><b>${S.orders.length}</b></div><div class=card>Revenue<br><b>${inr(sold)}</b></div><div class=card>Low stock (&lt;10)<br><b>${S.products.filter(p=>p.stock<10).length}</b></div></div>
+<h3>Inventory</h3><div class=card style="max-height:340px;overflow:auto"><table><tr><th>Product<th>Stock</tr>${S.products.map(p=>`<tr><td>${p.name}<td><input type=number min=0 style="width:80px" value=${p.stock} onchange="P('${p.id}').stock=Math.max(0,+this.value|0);log('Stock updated: ${p.sku}');save()"></tr>`).join("")}</table></div>
+<h3>Activity</h3><div class=card>${S.activity.map(a=>`<div class=mu>${a}</div>`).join("")}</div><p><button onclick="if(confirm('Reset all data?')){localStorage.removeItem('smartmall');location.reload()}">Reset demo data</button></p>`},
+lab(){const r=labRes;return`<h2>Logic Lab</h2><p class=mu>Runs the SmartMall checkout controllers (cart_validator, inventory_controller, queue_manager, payment_controller, discount_controller, checkout_fsm) as a JavaScript port of the Verilog testbench.</p><div class=bar>${Object.keys(SCEN).map(n=>`<button class="${r&&r.scenario==n?"pr":""}" onclick="labRes=simulate('${n}');render()">${n}</button>`).join("")}</div>
+${r?`<p><b class="${r.passed?"ok":"er"}">${r.passed?"PASS":"FAIL"}</b> — ${r.scenario}</p><table>${Object.entries(r.signals).map(([k,v])=>`<tr><td>${k}<td>${v}</tr>`).join("")}</table><pre>${r.log}</pre>`:'<p class=mu>Pick a scenario.</p>'}
+<p><button onclick="labRes=null;const a=Object.keys(SCEN).map(n=>simulate(n));alert(a.map(x=>x.scenario+': '+(x.passed?'PASS':'FAIL')).join('\\n'))">Run all</button></p>`}};
+
+/* ---------- Router ---------- */
+const NAV=[["/","Shop"],["/wishlist","Wishlist"],["/cart","Cart"],["/orders","Orders"],["/admin","Admin"],["/logic-lab","Logic Lab"]];
+function render(keep){const h=location.hash.slice(1)||"/";const m=h.match(/^\/p\/(.+)/);
+ document.getElementById("nav").innerHTML=NAV.map(n=>`<a href="#${n[0]}" class="${h==n[0]?"on":""}">${n[1]}</a>`).join("");
+ document.getElementById("cc").textContent="🛒 "+cartCount();
+ const v=m?V_.product(m[1]):h=="/"?V_.home():h=="/wishlist"?V_.wishlist():h=="/cart"?V_.cart():h=="/orders"?V_.orders():h=="/admin"?V_.admin():h=="/logic-lab"?V_.lab():"<h2>Page not found</h2>";
+ const a=document.getElementById("app"),f=document.activeElement&&document.activeElement.id=="q";
+ a.innerHTML=v;if(keep&&f){const q=document.getElementById("q");q.focus();q.setSelectionRange(q.value.length,q.value.length)}}
+addEventListener("hashchange",()=>{render();scrollTo(0,0)});render();
+</script></body></html>
